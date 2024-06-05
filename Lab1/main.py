@@ -1,105 +1,80 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
 
-"""
-    Функція для зчитування координат вершин з файлу vertices.txt.txt
+class Segment:
+    def __init__(self, p1, p2):
+        self.p1 = p1
+        self.p2 = p2
 
-    :param filename: ім'я файлу vertices.txt
-    :return: масив координат вершин у форматі (x, y)
-"""
+    def contains_point(self, point):
+        if (point.x - self.p1.x) * (self.p2.y - self.p1.y) != (point.y - self.p1.y) * (self.p2.x - self.p1.x):
+            return False
+        if min(self.p1.x, self.p2.x) <= point.x <= max(self.p1.x, self.p2.x) and min(self.p1.y, self.p2.y) <= point.y <= max(self.p1.y, self.p2.y):
+            return True
+        return False
+
 def read_vertices(filename):
-    with open(filename, 'r', encoding='utf-8') as f:
+    with open(filename, 'r') as f:
         vertices = []
         for line in f:
-            x, y = line.strip().split()
-            vertices.append(np.array([float(x), float(y)]))
+            x, y = map(float, line.strip().split())
+            vertices.append(Point(x, y))
         return vertices
 
-
-
-"""
-    Функція для зчитування ребер з файлу edges.txt
-
-    :param filename: ім'я файлу edges.txt
-    :return: список ребер у форматі (індекс початкової вершини, індекс кінцевої вершини)
-"""
-def read_edges(filename):
-    with open(filename, 'r', encoding='utf-8') as f:
+def read_edges(filename, vertices):
+    with open(filename, 'r') as f:
         edges = []
         for line in f:
-            v1, v2 = line.strip().split()
-            edges.append((int(v1), int(v2)))
+            start, end = map(int, line.strip().split())
+            edges.append(Segment(vertices[start], vertices[end]))
         return edges
 
-
-
-
-"""
-    Функція для визначення, з якої сторони вектора (p1 - p0) знаходиться точка p2
-
-    :param p0: координати початкової точки вектора у форматі (x, y)
-    :param p1: координати кінцевої точки вектора у форматі (x, y)
-    :param p2: координати точки, яку потрібно перевірити у форматі (x, y)
-    :return: True, якщо точка p2 знаходиться ліворуч від вектора (p1 - p0), і False - якщо справа
-"""
-def is_left(p1, p2, p):
-    return np.cross(p2 - p1, p - p1) > 0
-
-
-
-
-"""
-    Функція для локалізації точки на планарному розбитті методом трапецій
-
-    :param point: координати точки у форматі (x, y)
-    :param vertices.txt: масив координат вершин у форматі (x, y)
-    :param edges: список ребер у форматі (індекс початкової вершини, індекс кінцевої вершини)
-    :return: індекс грані, на якій знаходиться точка
-
-"""
-def localize_point(point, vertices, edges):
-    # шукаємо трикутник, в якому знаходиться точка
-    for i, (v1, v2, v3) in enumerate(zip(vertices[:-2], vertices[1:-1], vertices[2:])):
-        if is_left(v1, v2, point) and is_left(v2, v3, point) and is_left(v3, v1, point):
+def localize_point(point, edges):
+    for i, edge in enumerate(edges):
+        if edge.contains_point(point):
             return i
-
-    # шукаємо грань, на якій знаходиться точка
-    for i, (v1, v2) in enumerate(edges):
-        if is_left(vertices[v1], vertices[v2], point):
-            return i + len(vertices) - 2
-
-    # якщо точка знаходиться за межами планарного розбиття, повертаємо None
     return None
 
-
-
-
-def plot_graph(vertices, edges, point):
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-
-    ax.plot(point[0],point[1], 'go')
-
-    for v in vertices:
-        ax.plot(v[0], v[1], 'ro')
-
-    for e in edges:
-        ax.plot([vertices[e[0]][0], vertices[e[1]][0]],
-                [vertices[e[0]][1], vertices[e[1]][1]], 'b-')
-
+def plot_graph(vertices, edges, point, highlight_edge_index=None):
+    fig, ax = plt.subplots()
+    # Plot edges and vertices
+    for i, edge in enumerate(edges):
+        plt.plot([edge.p1.x, edge.p2.x], [edge.p1.y, edge.p2.y], 'b-', linewidth=1)
+        # Add text label near the middle of the segment
+        mid_point = Point((edge.p1.x + edge.p2.x) / 2, (edge.p1.y + edge.p2.y) / 2)
+        plt.text(mid_point.x, mid_point.y, f'{i}', color='purple', fontsize=12)
+    for vertex in vertices:
+        plt.plot(vertex.x, vertex.y, 'ro')
+    # Highlight the edge if point is on it
+    if highlight_edge_index is not None:
+        edge = edges[highlight_edge_index]
+        plt.plot([edge.p1.x, edge.p2.x], [edge.p1.y, edge.p2.y], 'g-', linewidth=2)
+    # Plot the test point
+    plt.plot(point.x, point.y, 'yo', markersize=10)
+    plt.xlabel('X координата')
+    plt.ylabel('Y координата')
+    plt.title('Візуалізація графу з виділеною точкою')
+    plt.grid(True)
+    plt.axis('equal')
     plt.show()
 
 
+# Зчитування даних з файлів
+vertices = read_vertices('vertices.txt')
+edges = read_edges('edges.txt', vertices)
 
+# Приклад точки для локалізації
+test_point = Point(11, 7)  # Змініть координати для різних тестів
+found_edge_index = localize_point(test_point, edges)
 
-# приклад використання функцій для локалізації точки
-vertices = read_vertices(r'vertices.txt')
-edges = read_edges(r'edges.txt')
-point = np.array([11, 2])  # приклад координат точки
-print(localize_point(point, vertices, edges))
-plot_graph(vertices, edges,point)
-
-
-
-
+if found_edge_index is not None:
+    print(f"Точка знаходиться на ребрі з індексом {found_edge_index}.")
+    plot_graph(vertices, edges, test_point, found_edge_index)
+else:
+    print("Точка не знаходиться на жодному з ребер.")
+    plot_graph(vertices, edges, test_point)
